@@ -1,0 +1,22 @@
+# Python virtual environments & cache
+.venv/
+*/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+**/*.pyc
+
+# Large datasets & audits
+master_dataset/
+**/master_dataset/
+dataset/
+**/dataset/
+*.csv
+**/*.csv
+
+# Editor & OS settings
+.vscode/
+*/.vscode/
+.DS_Store
+Thumbs.db
+!classification/price_engine/data/price_dataset.csv

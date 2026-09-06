@@ -12,17 +12,15 @@ import tensorflow as tf
 
 from price_integration import recommend_price
 
-
 # ============================================================
-# FLASK APP
+# FLASK APP SETUP
 # ============================================================
 
 app = Flask(__name__)
-CORS(app)
-
+CORS(app)  # Enables frontend/backend clients to connect across different ports/domains
 
 # ============================================================
-# MODEL SETTINGS
+# MODEL CONFIGURATION & CONSTANTS
 # ============================================================
 
 MODEL_PATH = "best_e_waste_model.keras"
@@ -40,341 +38,195 @@ CLASS_NAMES = [
 
 CONFIDENCE_THRESHOLD = 0.70
 
-
 # ============================================================
 # LOAD MODEL
 # ============================================================
 
 print("Loading ML model...")
-
-model = tf.keras.models.load_model(MODEL_PATH)
-
-print("ML model loaded successfully.")
-
+try:
+    model = tf.keras.models.load_model(MODEL_PATH)
+    print("ML model loaded successfully.")
+except Exception as e:
+    model = None
+    print(f"Error: Failed to load model from {MODEL_PATH}: {e}")
 
 # ============================================================
-# IMAGE PREDICTION
+# IMAGE PREPROCESSING & INFERENCE
 # ============================================================
 
 def predict_image(image_bytes):
-
-    image_array = np.frombuffer(
-        image_bytes,
-        np.uint8
-    )
-
-    image = cv2.imdecode(
-        image_array,
-        cv2.IMREAD_COLOR
-    )
+    # Decode raw byte stream into OpenCV image array
+    image_array = np.frombuffer(image_bytes, np.uint8)
+    image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
     if image is None:
-        raise ValueError("Could not decode image.")
+        raise ValueError("Invalid image data. Unable to decode.")
 
-    # Resize
-    image = cv2.resize(
-        image,
-        IMAGE_SIZE
-    )
+    # Resize to the model's required input resolution
+    image = cv2.resize(image, IMAGE_SIZE)
 
-    # BGR -> RGB
-    image = cv2.cvtColor(
-        image,
-        cv2.COLOR_BGR2RGB
-    )
+    # Convert OpenCV standard BGR to RGB
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Normalize
+    # Normalize pixel intensity to [0.0, 1.0]
     image = image.astype("float32") / 255.0
 
-    # Add batch dimension
-    image = np.expand_dims(
-        image,
-        axis=0
-    )
+    # Add batch dimension: (256, 256, 3) -> (1, 256, 256, 3)
+    image = np.expand_dims(image, axis=0)
 
-    # Prediction
-    predictions = model.predict(
-        image,
-        verbose=0
-    )
+    # Inference
+    predictions = model.predict(image, verbose=0)
 
-    predicted_index = int(
-        np.argmax(predictions[0])
-    )
-
-    confidence = float(
-        predictions[0][predicted_index]
-    )
-
-    predicted_class = CLASS_NAMES[
-        predicted_index
-    ]
+    predicted_index = int(np.argmax(predictions[0]))
+    confidence = float(predictions[0][predicted_index])
+    predicted_class = CLASS_NAMES[predicted_index]
 
     return predicted_class, confidence
 
-
 # ============================================================
-# HEALTH CHECK
+# HEALTH CHECK ENDPOINT
 # ============================================================
 
 @app.route("/api/health", methods=["GET"])
 def health():
-
     return jsonify({
         "success": True,
         "message": "E-waste ML API is running",
+        "model_loaded": model is not None,
         "status": "running"
-    })
-
+    }), 200
 
 # ============================================================
-# IMAGE CLASSIFICATION API
+# IMAGE CLASSIFICATION ENDPOINT
 # ============================================================
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({
+            "success": False,
+            "error": "ML model is not loaded on server."
+        }), 503
 
     try:
-
-        # Check image
+        # Check if form-data contains the 'image' field
         if "image" not in request.files:
-
             return jsonify({
                 "success": False,
-                "error": "No image uploaded."
+                "error": "Missing 'image' key in form-data payload."
             }), 400
 
         image_file = request.files["image"]
-
         image_bytes = image_file.read()
 
         if not image_bytes:
-
             return jsonify({
                 "success": False,
-                "error": "Uploaded image is empty."
+                "error": "Uploaded image file is empty."
             }), 400
 
-        # Predict
-        category, confidence = predict_image(
-            image_bytes
-        )
-
-        # Confidence status
-        accepted = (
-            confidence >= CONFIDENCE_THRESHOLD
-        )
+        # Perform prediction
+        category, confidence = predict_image(image_bytes)
+        accepted = confidence >= CONFIDENCE_THRESHOLD
 
         return jsonify({
-
             "success": True,
-
             "classification": {
-
                 "predicted_category": category,
-
-                "confidence": confidence,
-
-                "confidence_percent": round(
-                    confidence * 100,
-                    2
-                ),
-
+                "confidence": round(confidence, 4),
+                "confidence_percent": round(confidence * 100, 2),
                 "accepted": accepted
-
             }
+        }), 200
 
-        })
-
-    except Exception as e:
-
-        print(
-            "Prediction error:",
-            e
-        )
-
+    except ValueError as ve:
         return jsonify({
-
             "success": False,
-
-            "error": str(e)
-
+            "error": str(ve)
+        }), 400
+    except Exception as e:
+        print("Prediction error:", e)
+        return jsonify({
+            "success": False,
+            "error": f"Internal inference error: {str(e)}"
         }), 500
 
-
 # ============================================================
-# PRICE RECOMMENDATION API
+# PRICE RECOMMENDATION ENDPOINT
 # ============================================================
 
 @app.route("/api/recommend-price", methods=["POST"])
 def recommend():
-
     try:
-
         data = request.get_json()
 
         if not data:
-
             return jsonify({
                 "success": False,
-                "error": "No JSON data received."
+                "error": "Missing or invalid JSON body in request."
             }), 400
 
-        # ----------------------------------------------------
-        # Required information
-        # ----------------------------------------------------
+        # Validate mandatory keys
+        required_fields = ["category", "state", "city", "quantity", "total_weight_kg"]
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    "success": False,
+                    "error": f"Missing required field: '{field}'"
+                }), 400
 
-        category = data["category"]
-
-        confidence = float(
-            data.get(
-                "confidence",
-                0
-            )
-        )
-
-        state = data["state"]
-
-        city = data["city"]
-
-        quantity = float(
-            data["quantity"]
-        )
-
-        total_weight = float(
-            data["total_weight_kg"]
-        )
-
-        subcategory = data.get(
-            "subcategory"
-        )
-
-        # ----------------------------------------------------
-        # Prepare classifier result
-        # ----------------------------------------------------
-
+        # Payload assembly
         classifier_result = {
-
-            "category": category,
-
-            "confidence": confidence
-
+            "category": str(data["category"]),
+            "confidence": float(data.get("confidence", 0.0))
         }
-
-        # ----------------------------------------------------
-        # Prepare user input
-        # ----------------------------------------------------
 
         user_input = {
-
-            "state": state,
-
-            "city": city,
-
-            "quantity": quantity,
-
-            "total_weight_kg": total_weight,
-
-            "subcategory": subcategory
-
+            "state": str(data["state"]),
+            "city": str(data["city"]),
+            "quantity": float(data["quantity"]),
+            "total_weight_kg": float(data["total_weight_kg"]),
+            "subcategory": data.get("subcategory")
         }
 
-        # ----------------------------------------------------
-        # Get price recommendation
-        # ----------------------------------------------------
-
-        result = recommend_price(
-
-            classifier_result,
-
-            user_input
-
-        )
+        # Run price logic from imported module
+        result = recommend_price(classifier_result, user_input)
 
         return jsonify({
-
             "success": True,
-
             "result": result
+        }), 200
 
-        })
-
-    except KeyError as e:
-
+    except (ValueError, TypeError) as conv_err:
         return jsonify({
-
             "success": False,
-
-            "error": f"Missing required field: {str(e)}"
-
+            "error": f"Invalid data type provided: {str(conv_err)}"
         }), 400
-
     except Exception as e:
-
-        print(
-            "Pricing error:",
-            e
-        )
-
+        print("Pricing calculation error:", e)
         return jsonify({
-
             "success": False,
-
-            "error": str(e)
-
+            "error": f"Internal pricing error: {str(e)}"
         }), 500
 
-
 # ============================================================
-# RUN SERVER
+# SERVER STARTUP
 # ============================================================
 
 if __name__ == "__main__":
+    print("\n" + "=" * 60)
+    print("      E-WASTE ML CLASSIFICATION & PRICING SERVER")
+    print("=" * 60 + "\n")
+    print("Endpoints:")
+    print("  GET  /api/health")
+    print("  POST /api/predict")
+    print("  POST /api/recommend-price\n")
 
-    print()
-
-    print("=" * 60)
-
-    print(
-        "      E-WASTE ML CLASSIFICATION & PRICING API"
-    )
-
-    print("=" * 60)
-
-    print()
-
-    print(
-        "Health API:"
-    )
-
-    print(
-        "http://127.0.0.1:5000/api/health"
-    )
-
-    print()
-
-    print(
-        "Classification API:"
-    )
-
-    print(
-        "POST http://127.0.0.1:5000/api/predict"
-    )
-
-    print()
-
-    print(
-        "Pricing API:"
-    )
-
-    print(
-        "POST http://127.0.0.1:5000/api/recommend-price"
-    )
-
-    print()
-
+    # host='0.0.0.0' allows external connections from your LAN/teammate.
+    # threaded=False ensures safe, single-thread TensorFlow tensor memory execution.
     app.run(
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=5000,
-        debug=True
+        debug=False,
+        threaded=False
     )
