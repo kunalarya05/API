@@ -1,0 +1,16 @@
+# Python
+classification/.venv/
+classification/__pycache__/
+classification/*.pyc
+
+# VS Code
+.vscode/
+classification/.vscode/
+
+# Large datasets
+classification/master_dataset/
+classification/dataset/
+
+# Python cache anywhere
+**/__pycache__/
+**/*.pyc
