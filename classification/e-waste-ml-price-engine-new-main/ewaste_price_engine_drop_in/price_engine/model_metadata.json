@@ -1,0 +1,301 @@
+{
+  "dataset_rows": 1116,
+  "material_rows": 65,
+  "is_synthetic_counts": {
+    "True": 1116
+  },
+  "features": [
+    "vision_category",
+    "subcategory",
+    "location_state",
+    "location_city",
+    "city_tier",
+    "year",
+    "month",
+    "day",
+    "day_of_year"
+  ],
+  "excluded_leakage_columns": [
+    "source_base_price_min_inr",
+    "source_base_price_max_inr",
+    "source_base_price_mid_inr",
+    "location_price_factor",
+    "category_location_factor",
+    "date_factor",
+    "market_range_min_inr",
+    "market_range_max_inr",
+    "formal_channel_bonus_inr",
+    "formal_bonus_percentage",
+    "doorstep_informal_price_inr",
+    "wholesale_mandi_price_inr",
+    "authorized_recycler_offered_price_inr"
+  ],
+  "validation": "group holdout by location_city (25% cities held out)",
+  "targets": {
+    "informal": "doorstep_informal_price_inr",
+    "mandi": "wholesale_mandi_price_inr",
+    "authorized": "authorized_recycler_offered_price_inr"
+  },
+  "units": {
+    "per_kg": {
+      "rows": 960,
+      "train_rows": 720,
+      "test_rows": 240,
+      "train_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Indore",
+        "Jaipur",
+        "Kolkata",
+        "Lucknow",
+        "Pune"
+      ],
+      "test_cities": [
+        "Ahmedabad",
+        "Mumbai",
+        "Nagpur"
+      ],
+      "channels": {
+        "informal": {
+          "target_column": "doorstep_informal_price_inr",
+          "best_model": "random_forest",
+          "model_file": "per_kg__informal__best.joblib",
+          "holdout_mae_inr": 6.524198809523809,
+          "residual_q10": -1.5865714285714272,
+          "residual_q90": 14.04714285714285
+        },
+        "mandi": {
+          "target_column": "wholesale_mandi_price_inr",
+          "best_model": "random_forest",
+          "model_file": "per_kg__mandi__best.joblib",
+          "holdout_mae_inr": 8.436335714285715,
+          "residual_q10": -1.6171428571428434,
+          "residual_q90": 19.664285714285665
+        },
+        "authorized": {
+          "target_column": "authorized_recycler_offered_price_inr",
+          "best_model": "random_forest",
+          "model_file": "per_kg__authorized__best.joblib",
+          "holdout_mae_inr": 8.979011904761906,
+          "residual_q10": -2.2414285714285964,
+          "residual_q90": 18.289999999999978
+        }
+      }
+    },
+    "per_piece": {
+      "rows": 156,
+      "train_rows": 117,
+      "test_rows": 39,
+      "train_cities": [
+        "Bengaluru",
+        "Chennai",
+        "Delhi",
+        "Hyderabad",
+        "Indore",
+        "Jaipur",
+        "Kolkata",
+        "Lucknow",
+        "Pune"
+      ],
+      "test_cities": [
+        "Ahmedabad",
+        "Mumbai",
+        "Nagpur"
+      ],
+      "channels": {
+        "informal": {
+          "target_column": "doorstep_informal_price_inr",
+          "best_model": "xgboost",
+          "model_file": "per_piece__informal__best.joblib",
+          "holdout_mae_inr": 5.874696301191281,
+          "residual_q10": -0.7750976562499999,
+          "residual_q90": 11.397894287109384
+        },
+        "mandi": {
+          "target_column": "wholesale_mandi_price_inr",
+          "best_model": "xgboost",
+          "model_file": "per_piece__mandi__best.joblib",
+          "holdout_mae_inr": 7.086609209500826,
+          "residual_q10": -0.41229476928710934,
+          "residual_q90": 13.076721191406259
+        },
+        "authorized": {
+          "target_column": "authorized_recycler_offered_price_inr",
+          "best_model": "xgboost",
+          "model_file": "per_piece__authorized__best.joblib",
+          "holdout_mae_inr": 6.2703794723902,
+          "residual_q10": -1.3523590087890625,
+          "residual_q90": 14.367749023437502
+        }
+      }
+    }
+  },
+  "category_unit_map": {
+    "BATTERIES": "per_kg",
+    "CABLES_WIRES": "per_kg",
+    "CRT": "per_piece",
+    "LCD_LED": "per_kg",
+    "MOBILE_TABLETS": "per_piece",
+    "MOTORS": "per_kg",
+    "PCB": "per_kg",
+    "PLASTICS": "per_kg"
+  },
+  "subcategories": {
+    "BATTERIES": [
+      "Car Lead-Acid Battery",
+      "Inverter Battery",
+      "Keypad Phone Battery",
+      "Laptop Li-ion Battery",
+      "Lead-Acid Battery - Generic",
+      "Li-ion Battery - Mixed",
+      "Powerbank / Earbud / Small Gadget Battery",
+      "Smartphone Li-ion Battery",
+      "UPS / Non-Portable Li-ion Battery"
+    ],
+    "CABLES_WIRES": [
+      "#1 Clean Copper Wire",
+      "#2 Mixed Copper Wire",
+      "Bare Bright Copper Wire",
+      "Copper Cable Scrap - High Grade",
+      "Copper Motor Winding Wire",
+      "Copper Transformer Winding",
+      "Insulated Copper Wire",
+      "Mixed Low-Grade Electronic Cable"
+    ],
+    "CRT": [
+      "CRT Monitor - 17 inch",
+      "CRT Monitor - Standard",
+      "CRT TV - Large 21 inch+",
+      "CRT TV - Small 14-17 inch",
+      "CRT TV - Standard"
+    ],
+    "LCD_LED": [
+      "Broken LCD/LED Display Lot",
+      "LCD Monitor",
+      "LCD TV Panel / Assembly",
+      "LCD/LED Display - Mixed Scrap",
+      "LED TV Panel / Assembly",
+      "TFT Monitor"
+    ],
+    "MOBILE_TABLETS": [
+      "Android Smartphone - 128GB",
+      "Android Smartphone - 16GB",
+      "Android Smartphone - 256GB",
+      "Android Smartphone - 32GB",
+      "Android Smartphone - 64GB",
+      "Keypad Phone - Complete",
+      "Smartphone - Generic Complete",
+      "Tablet - Generic Complete"
+    ],
+    "MOTORS": [
+      "Ceiling Fan Motor Scrap",
+      "DC Fan Motor Scrap",
+      "Large Copper-Wound Motor",
+      "Mixed E-waste Motor - Copper Wiring",
+      "Printer / Scanner Motor",
+      "Small Appliance Motor"
+    ],
+    "PCB": [
+      "Desktop PCB - China Chip",
+      "Desktop PCB - Double Chip",
+      "Desktop PCB - Single Chip",
+      "Keypad Phone PCB - Branded",
+      "Keypad Phone PCB - China",
+      "Laptop PCB - China Chip",
+      "Laptop PCB - Server Board",
+      "Laptop PCB - VGA Chip",
+      "Mixed Motherboard Scrap",
+      "Set-top Box PCB - Black Chip",
+      "Set-top Box PCB - China Chip",
+      "Set-top Box PCB - Combo Chip",
+      "Set-top Box PCB - VGA Chip",
+      "Smartphone PCB - 128GB Grade",
+      "Smartphone PCB - 256GB Grade",
+      "Smartphone PCB - 8GB Grade"
+    ],
+    "PLASTICS": [
+      "ABS Plastic - Electronics Housing",
+      "HDPE Plastic Scrap",
+      "LDPE Plastic Scrap",
+      "Mixed Plastic - E-waste",
+      "PET Plastic Scrap",
+      "PP Plastic Scrap",
+      "PVC Plastic Scrap"
+    ]
+  },
+  "city_tiers": [
+    {
+      "location_state": "Maharashtra",
+      "location_city": "Pune",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Maharashtra",
+      "location_city": "Mumbai",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Maharashtra",
+      "location_city": "Nagpur",
+      "city_tier": "Tier 2"
+    },
+    {
+      "location_state": "Delhi NCR",
+      "location_city": "Delhi",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Karnataka",
+      "location_city": "Bengaluru",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Tamil Nadu",
+      "location_city": "Chennai",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Telangana",
+      "location_city": "Hyderabad",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Gujarat",
+      "location_city": "Ahmedabad",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "West Bengal",
+      "location_city": "Kolkata",
+      "city_tier": "Tier 1"
+    },
+    {
+      "location_state": "Uttar Pradesh",
+      "location_city": "Lucknow",
+      "city_tier": "Tier 2"
+    },
+    {
+      "location_state": "Madhya Pradesh",
+      "location_city": "Indore",
+      "city_tier": "Tier 2"
+    },
+    {
+      "location_state": "Rajasthan",
+      "location_city": "Jaipur",
+      "city_tier": "Tier 2"
+    }
+  ],
+  "max_date_recorded": "2026-09-05",
+  "supported_categories": [
+    "BATTERIES",
+    "CABLES_WIRES",
+    "CRT",
+    "LCD_LED",
+    "MOBILE_TABLETS",
+    "MOTORS",
+    "PCB",
+    "PLASTICS"
+  ]
+}

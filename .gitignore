@@ -1,22 +1,29 @@
-# Python virtual environments & cache
 .venv/
-*/.venv/
+venv/
 __pycache__/
-**/__pycache__/
 *.pyc
-**/*.pyc
 
-# Large datasets & audits
-master_dataset/
-**/master_dataset/
 dataset/
-**/dataset/
-*.csv
-**/*.csv
+master_dataset/
+Realworld_test_image/
+Realworld_test_image_converted/
+realworld_errors_v5/
 
-# Editor & OS settings
-.vscode/
-*/.vscode/
-.DS_Store
-Thumbs.db
-!classification/price_engine/data/price_dataset.csv
+*.h5
+*.weights.h5
+
+baseline_v2_model.keras
+best_e_waste_model.keras
+best_e_waste_model_v4.keras
+v3_checkpoint_model.keras
+
+tflite_export_tmp/
+
+test_*.jpeg
+test_*.jpg
+test_*.png
+
+confusion_matrix*.png
+dataset_audit_report.csv
+
+.git/

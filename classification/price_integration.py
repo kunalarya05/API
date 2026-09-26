@@ -2,13 +2,17 @@ from pathlib import Path
 import sys
 
 # Path to the price_engine folder
-PRICE_ENGINE_DIR = Path(__file__).resolve().parent / "price_engine"
+PRICE_ENGINE_DIR = (
+    Path(__file__).resolve().parent
+    / "e-waste-ml-price-engine-new-main"
+    / "ewaste_price_engine_drop_in"
+    / "price_engine"
+)
 
 # Allow Python to find price_engine.py
 sys.path.insert(0, str(PRICE_ENGINE_DIR))
 
 from price_engine import PriceEngine, QuoteRequest
-
 
 # Path to pricing dataset
 DATASET_PATH = PRICE_ENGINE_DIR / "data" / "price_dataset.csv"
