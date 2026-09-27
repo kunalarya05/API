@@ -1,4 +1,7 @@
 import os
+import json
+import math
+from pathlib import Path
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
@@ -10,31 +13,28 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
-from price_integration import recommend_price
+from price_integration import recommend_price, engine
 
 # ============================================================
 # FLASK APP SETUP
 # ============================================================
 
 app = Flask(__name__)
-CORS(app)  # Enables frontend/backend clients to connect across different ports/domains
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+CORS(app, origins=os.environ.get("CORS_ORIGINS", "*").split(","))
+
+@app.errorhandler(413)
+def too_large(error):
+    return jsonify(success=False, error="Maximum upload size is 10 MiB."), 413
 
 # ============================================================
 # MODEL CONFIGURATION & CONSTANTS
 # ============================================================
 
-MODEL_PATH = "best_e_waste_model.keras"
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "best_e_waste_model_v5.keras"
 IMAGE_SIZE = (256, 256)
-
-CLASS_NAMES = [
-    "Battery",
-    "CRT",
-    "LCD_LED",
-    "Motors",
-    "PCB",
-    "Plastic",
-    "Wires"
-]
+CLASS_NAMES = json.loads((BASE_DIR / "class_names.json").read_text())
 
 CONFIDENCE_THRESHOLD = 0.70
 
@@ -44,11 +44,12 @@ CONFIDENCE_THRESHOLD = 0.70
 
 print("Loading ML model...")
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+    if model.output_shape[-1] != len(CLASS_NAMES):
+        raise ValueError("Model output count does not match class_names.json")
     print("ML model loaded successfully.")
 except Exception as e:
-    model = None
-    print(f"Error: Failed to load model from {MODEL_PATH}: {e}")
+    raise RuntimeError(f"Failed to load classifier: {MODEL_PATH}") from e
 
 # ============================================================
 # IMAGE PREPROCESSING & INFERENCE
@@ -68,8 +69,8 @@ def predict_image(image_bytes):
     # Convert OpenCV standard BGR to RGB
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    # Normalize pixel intensity to [0.0, 1.0]
-    image = image.astype("float32") / 255.0
+    # Match the v5 camera_scan.py preprocessing: RGB float32 in [0, 255].
+    image = image.astype("float32")
 
     # Add batch dimension: (256, 256, 3) -> (1, 256, 256, 3)
     image = np.expand_dims(image, axis=0)
@@ -93,6 +94,9 @@ def health():
         "success": True,
         "message": "E-waste ML API is running",
         "model_loaded": model is not None,
+        "pricing_loaded": engine is not None,
+        "model_version": "v5",
+        "classes": CLASS_NAMES,
         "status": "running"
     }), 200
 
@@ -148,7 +152,7 @@ def predict():
         print("Prediction error:", e)
         return jsonify({
             "success": False,
-            "error": f"Internal inference error: {str(e)}"
+            "error": "Internal inference error."
         }), 500
 
 # ============================================================
@@ -158,9 +162,9 @@ def predict():
 @app.route("/api/recommend-price", methods=["POST"])
 def recommend():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
 
-        if not data:
+        if not isinstance(data, dict) or not data:
             return jsonify({
                 "success": False,
                 "error": "Missing or invalid JSON body in request."
@@ -175,6 +179,17 @@ def recommend():
                     "error": f"Missing required field: '{field}'"
                 }), 400
 
+        for field in ("category", "state", "city"):
+            if not isinstance(data[field], str) or not data[field].strip():
+                raise ValueError(f"{field} must be a nonempty string")
+        for field in ("quantity", "total_weight_kg"):
+            value = float(data[field])
+            if isinstance(data[field], bool) or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{field} must be a finite positive number")
+        confidence = float(data.get("confidence", 0.0))
+        if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+            raise ValueError("confidence must be between 0 and 1")
+
         # Payload assembly
         classifier_result = {
             "category": str(data["category"]),
@@ -186,7 +201,10 @@ def recommend():
             "city": str(data["city"]),
             "quantity": float(data["quantity"]),
             "total_weight_kg": float(data["total_weight_kg"]),
-            "subcategory": data.get("subcategory")
+            "subcategory": data.get("subcategory"),
+            "channel": data.get("channel", "authorized"),
+            "unit": data.get("unit", "auto"),
+            "as_of_date": data.get("as_of_date")
         }
 
         # Run price logic from imported module
@@ -206,7 +224,7 @@ def recommend():
         print("Pricing calculation error:", e)
         return jsonify({
             "success": False,
-            "error": f"Internal pricing error: {str(e)}"
+            "error": "Internal pricing error."
         }), 500
 
 # ============================================================
@@ -226,7 +244,7 @@ if __name__ == "__main__":
     # threaded=False ensures safe, single-thread TensorFlow tensor memory execution.
     app.run(
         host="0.0.0.0",
-        port=5000,
+        port=int(os.environ.get("PORT", "5000")),
         debug=False,
         threaded=False
     )
